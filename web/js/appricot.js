@@ -46,10 +46,18 @@ appricot.App = Class.$extend({
     renderUI: function() {
         var userStream = new appricot.UserStream();
 
-        var refresh = document.createElement('i');
-        bonzo(refresh).addClass('icon-refresh');
+        var refresh = document.createElement('button');
+        bonzo(refresh)
+            .addClass('btn')
+            .html("<i class='icon-refresh'></i>");
         bean.add(refresh, 'click', _.bind(this.handleRefreshButton, this, userStream));
-        bonzo(this.rootNode).append(refresh);
+
+        var topRow = document.createElement('div');
+        bonzo(topRow)
+            .addClass('row-fluid')
+            .append(refresh);
+
+        bonzo(this.rootNode).append(topRow);
 
         bonzo(this.rootNode).append(userStream.render());
         userStream.load();
