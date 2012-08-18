@@ -63,6 +63,7 @@ appricot.App = Class.$extend({
 appricot.Stream = Class.$extend({
     cache: null,
     isFetching: false,
+    topOfFirstLoad: 0,
 
     __init__: function(endpoint) {
         this.endpoint = endpoint;
@@ -71,7 +72,16 @@ appricot.Stream = Class.$extend({
 
     load: function() {
         this.cache = [];
-        this.loadData();
+        var lastPos = window.localStorage['stream_pos_' + this.type];
+        this.currentTopPostId = lastPos;
+        if (lastPos) {
+            this.loadTopStreamAfterNextFetch = true;
+            this.loadData({
+                before_id: parseInt(lastPos, 10) + 1
+            });
+        } else {
+            this.loadData();
+        }
     },
 
     loadData: function(params) {
@@ -105,6 +115,21 @@ appricot.Stream = Class.$extend({
     },
 
     handleScroll: function(e) {
+        if (this.lockScroll) {
+            return;
+        }
+        if (this.cache.length > 0) {
+            var scrollTop = bonzo(this.node).scrollTop();
+            var topPost = _.find(this.cache, function(item) {
+                if(item.render().offsetTop >= scrollTop) {
+                    return true;
+                }
+            }, this);
+            window.localStorage['stream_pos_' + this.type] = topPost.id;
+            this.currentTopPostId = topPost.id;
+        }
+
+
         var wrappedNode = bonzo(this.node);
         if (wrappedNode.scrollTop() >= this.node.scrollHeight - wrappedNode.offset().height - 10) {
             this.loadMorePrevious();
@@ -136,31 +161,116 @@ appricot.Stream = Class.$extend({
 });
 
 appricot.UserStream = appricot.Stream.$extend({
+    type: 'userstream',
+
     __init__: function() {
         this.$super('https://alpha-api.app.net/stream/0/posts/stream');
     },
 
     handleLoad: function(data) {
         var fetchMoreBefore = null;
+        var oldTopPost = null;
+        var isNewerData = false;
+        var topOfCache = null;
 
-        if (this.cache.length > 0) {
-            if (parseInt(_.last(data).id) > parseInt(_.first(this.cache).id)) {
-                fetchMoreBefore = _.last(data).id
+        var isFreshCache = (this.cache.length == 0);
+
+        // Create post wrapper objects for all the new items.
+        data = _.map(data, function(item) {
+            return new appricot.Post(item);
+        });
+
+        if (isFreshCache) {
+            this.topOfFirstLoad = _.first(data).id;
+        } else {
+            topOfCache = _.first(this.cache);
+            // new data is "newer" than the existing cache data.
+            console.log(_.last(data).id, this.topOfFirstLoad);
+            if (this.topOfFirstLoad && _.last(data).id <= this.topOfFirstLoad) {
+                this.topOfFirstLoad = 0;
             }
+            if (_.last(data).id >= _.first(this.cache).id) {
+                isNewerData = true;
+
+                // Doesn't overlap -- need to fetch more.
+                if (_.last(data).id > _.first(this.cache).id) {
+                    fetchMoreBefore = _.last(data).id + 1;
+                } else {
+                    this.topOfFirstLoad = 0;
+                }
+            }
+
+            // the post which is on top at present (before we add in the new dataset).
+            oldTopPost = _.first(this.cache);
         }
 
         this.cache = _.union(this.cache, data);
-        this.cache = _.sortBy(this.cache, function(item) { return parseInt(item.id); }); // this will break for large numbers...
+        this.cache = _.sortBy(this.cache, function(item) { return item.id; }); // this will break for large numbers...
         this.cache = _.uniq(this.cache, true, function(item) { return item.id; });
         this.cache.reverse();
-        bonzo(this.node).html(
-            Mustache.render("{{#posts}}<div class='post row-fluid'>{{id}}<br><div class='span1'><img class='avatar' src='{{user.avatar_image.url}}' /></div><div class='span10'><b>{{user.username}}</b><br />{{&html}}</div></div>{{/posts}}", {posts: this.cache})
-        );
+
+        var oldScrollHeight = this.node.scrollHeight;
+        this.lockScroll = true;
+        var shouldAdjustPosition = false;
+
+        _.each(this.cache, function(element, index, list) {
+            if (bonzo(element.render()).parent().length == 0) {
+                if (index == 0) {
+                    bonzo(this.node).prepend(element.render());
+                } else {
+                    bonzo(element.render()).insertAfter(list[index - 1].render());
+                }
+            }
+        }, this);
+
+        // Was this element above the current viewed top post?
+        if (this.currentTopPostId && _.first(data).id > this.currentTopPostId) {
+            shouldAdjustPosition = true;
+        }
+
+        if (!isFreshCache && shouldAdjustPosition) {
+            var diffScrollHeight = this.node.scrollHeight - oldScrollHeight;
+            bonzo(this.node).scrollTop(bonzo(this.node).scrollTop() + diffScrollHeight);
+        }
+
+        this.lockScroll = false;
 
         this.isFetching = false;
+
+        if (this.topOfFirstLoad) {
+            this.loadData({
+                since_id: this.topOfFirstLoad - 1,
+                before_id: (_.last(data).id > this.topOfFirstLoad ? _.last(data).id : null)
+            });
+            return;
+        }
 
         if (fetchMoreBefore) {
             this.loadMoreNewer(fetchMoreBefore);
         }
+    }
+});
+
+appricot.Post = Class.$extend({
+    post: null,
+    node: null,
+    id: 0,
+
+    __init__: function(post) {
+        this.post = post;
+        this.id = parseInt(this.post.id, 10);
+    },
+
+    render: function() {
+        if (!this.node) {
+            this.node = document.createElement('div');
+            bonzo(this.node)
+                .addClass('post row-fluid')
+                .html(Mustache.render("{{post.id}}<br><div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span6'><b>{{post.user.username}}</b></div><div class='span6'>{{post.created_at}}</div></div><div class='row-fluid'>{{&post.html}}</div></div>", {
+                    post: this.post
+                }));
+        }
+
+        return this.node;
     }
 });
