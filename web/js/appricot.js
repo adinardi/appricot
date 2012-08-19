@@ -46,25 +46,55 @@ appricot.App = Class.$extend({
     renderUI: function() {
         var userStream = new appricot.UserStream();
 
+        var pageContainer = document.createElement('div');
+        bonzo(pageContainer).addClass('row');
+
+        var toolbar = document.createElement('div');
+        bonzo(toolbar).addClass('span1');
+
+        var mainPage = document.createElement('div');
+        bonzo(mainPage).addClass('span11');
+
+        var streams = document.createElement('div');
+        bonzo(streams).addClass('row');
+
+        bonzo(mainPage).append(streams);
+
         var refresh = document.createElement('button');
         bonzo(refresh)
             .addClass('btn')
             .html("<i class='icon-refresh'></i>");
         bean.add(refresh, 'click', _.bind(this.handleRefreshButton, this, userStream));
+        bonzo(toolbar).append(refresh);
 
-        var topRow = document.createElement('div');
-        bonzo(topRow)
-            .addClass('row-fluid')
-            .append(refresh);
+        bonzo(streams).append(userStream.render());
 
-        bonzo(this.rootNode).append(topRow);
+        bonzo(pageContainer)
+            .append(toolbar)
+            .append(mainPage);
 
-        bonzo(this.rootNode).append(userStream.render());
+        bonzo(this.rootNode).append(pageContainer);
         userStream.load();
     },
 
     handleRefreshButton: function(stream) {
         stream.loadMoreNewer();
+    }
+});
+
+appricot.PostBox = Class.$extend({
+    node: null,
+
+    __init__: function() {
+
+    },
+
+    render: function() {
+        if (!this.node) {
+            this.node = document.createElement('div');
+        }
+
+        return this.node;
     }
 });
 
