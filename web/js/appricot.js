@@ -295,7 +295,7 @@ appricot.Post = Class.$extend({
             this.node = document.createElement('div');
             bonzo(this.node)
                 .addClass('post row-fluid')
-                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b>{{post.user.username}}</b></div><div class='span5'>{{post.created_at}}</div></div><div class='row-fluid'>{{&post.html}}</div></div>", {
+                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span5'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{post.created_at}}</a></div></div><div class='row-fluid post_content'>{{&post.html}}</div></div>", {
                     post: this.post
                 }));
         }
