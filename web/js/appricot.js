@@ -72,6 +72,7 @@ appricot.Stream = Class.$extend({
     cache: null,
     isFetching: false,
     topOfFirstLoad: 0,
+    postNode: null,
 
     __init__: function(endpoint) {
         this.endpoint = endpoint;
@@ -116,30 +117,50 @@ appricot.Stream = Class.$extend({
         if (!this.node) {
             this.node = document.createElement('div');
             bonzo(this.node).addClass('span6 stream_container');
-            bean.add(this.node, 'scroll', _.bind(this.handleScroll, this));
+
+            this.statusBar = document.createElement('div');
+            bonzo(this.statusBar).addClass('row-fluid statusbar');
+            bonzo(this.node).append(this.statusBar);
+
+            this.postNode = document.createElement('div');
+            bonzo(this.postNode).addClass('stream_post_container');
+            bonzo(this.node).append(this.postNode);
+            bean.add(this.postNode, 'scroll', _.bind(this.handleScroll, this));
         }
 
         return this.node;
+    },
+
+    updateStatus: function(count) {
+        bonzo(this.statusBar).html(
+            Mustache.render("{{count}} new posts", {
+                count: count
+            })
+        );
     },
 
     handleScroll: function(e) {
         if (this.lockScroll) {
             return;
         }
+
+        var count = 0;
         if (this.cache.length > 0) {
-            var scrollTop = bonzo(this.node).scrollTop();
+            var scrollTop = bonzo(this.postNode).scrollTop();
             var topPost = _.find(this.cache, function(item) {
                 if(item.render().offsetTop >= scrollTop) {
                     return true;
                 }
+                count++;
             }, this);
             window.localStorage['stream_pos_' + this.type] = topPost.id;
             this.currentTopPostId = topPost.id;
+            this.updateStatus(count);
         }
 
 
-        var wrappedNode = bonzo(this.node);
-        if (wrappedNode.scrollTop() >= this.node.scrollHeight - wrappedNode.offset().height - 10) {
+        var wrappedNode = bonzo(this.postNode);
+        if (wrappedNode.scrollTop() >= this.postNode.scrollHeight - wrappedNode.offset().height - 10) {
             this.loadMorePrevious();
         }
     },
@@ -217,14 +238,14 @@ appricot.UserStream = appricot.Stream.$extend({
         this.cache = _.uniq(this.cache, true, function(item) { return item.id; });
         this.cache.reverse();
 
-        var oldScrollHeight = this.node.scrollHeight;
+        var oldScrollHeight = this.postNode.scrollHeight;
         this.lockScroll = true;
         var shouldAdjustPosition = false;
 
         _.each(this.cache, function(element, index, list) {
             if (bonzo(element.render()).parent().length == 0) {
                 if (index == 0) {
-                    bonzo(this.node).prepend(element.render());
+                    bonzo(this.postNode).prepend(element.render());
                 } else {
                     bonzo(element.render()).insertAfter(list[index - 1].render());
                 }
@@ -237,8 +258,8 @@ appricot.UserStream = appricot.Stream.$extend({
         }
 
         if (!isFreshCache && shouldAdjustPosition) {
-            var diffScrollHeight = this.node.scrollHeight - oldScrollHeight;
-            bonzo(this.node).scrollTop(bonzo(this.node).scrollTop() + diffScrollHeight);
+            var diffScrollHeight = this.postNode.scrollHeight - oldScrollHeight;
+            bonzo(this.postNode).scrollTop(bonzo(this.postNode).scrollTop() + diffScrollHeight);
         }
 
         this.lockScroll = false;
@@ -274,7 +295,7 @@ appricot.Post = Class.$extend({
             this.node = document.createElement('div');
             bonzo(this.node)
                 .addClass('post row-fluid')
-                .html(Mustache.render("{{post.id}}<br><div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span6'><b>{{post.user.username}}</b></div><div class='span6'>{{post.created_at}}</div></div><div class='row-fluid'>{{&post.html}}</div></div>", {
+                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b>{{post.user.username}}</b></div><div class='span5'>{{post.created_at}}</div></div><div class='row-fluid'>{{&post.html}}</div></div>", {
                     post: this.post
                 }));
         }

@@ -1,9 +1,9 @@
 @post_divider_color: #eee;
 @highlight_color: #FFF694;
 
+@statusbar_height: 20px;
+
 .stream_container {
-    overflow-y: auto;
-    overflow-x: hidden;
     position: absolute;
     bottom: 10px;
     top: 30px;
@@ -12,10 +12,32 @@
     border-radius: 5px;
 }
 
+.stream_container .statusbar {
+    height: @statusbar_height;
+}
+
+.stream_post_container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: absolute;
+    top: @statusbar_height;
+    bottom: 0;
+    right: 0;
+    left: 0;
+}
+
 .post {
     border-bottom: 1px solid @post_divider_color;
-    padding-bottom: 3px;
-    padding-top: 3px;
+    padding-bottom: 7px;
+    padding-top: 7px;
+    padding-left: 7px;
+/*    background-image: -webkit-gradient(
+        linear,
+        left bottom,
+        left top,
+        color-stop(1, rgb(238,238,238)),
+        color-stop(0.5, rgb(255,255,255))
+    );*/
 }
 
 .post .avatar {
