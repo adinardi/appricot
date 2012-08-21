@@ -10,7 +10,7 @@ appricot.login = function() {
         "https://alpha.app.net/oauth/authenticate?",
         "client_id=","PkMGurQpTzGLmcyzK65sj4JXpkzVwUtE",
         "&response_type=token",
-        "&redirect_uri=","http://appricot.thetr.net/",
+        "&redirect_uri=","http://appricot.me/",
         "&scope=stream write_post",
     ].join('');
 };
@@ -229,10 +229,14 @@ appricot.UserStream = appricot.Stream.$extend({
     handleLoad: function(data) {
         var fetchMoreBefore = null;
         var oldTopPost = null;
-        var isNewerData = false;
         var topOfCache = null;
 
         var isFreshCache = (this.cache.length == 0);
+
+        if (data.length == 0) {
+            console.log("NO DATA!? OMG");
+            return;
+        }
 
         // Create post wrapper objects for all the new items.
         data = _.map(data, function(item) {
@@ -248,15 +252,8 @@ appricot.UserStream = appricot.Stream.$extend({
             if (this.topOfFirstLoad && _.last(data).id <= this.topOfFirstLoad) {
                 this.topOfFirstLoad = 0;
             }
-            if (_.last(data).id >= _.first(this.cache).id) {
-                isNewerData = true;
-
-                // Doesn't overlap -- need to fetch more.
-                if (_.last(data).id > _.first(this.cache).id) {
-                    fetchMoreBefore = _.last(data).id + 1;
-                } else {
-                    this.topOfFirstLoad = 0;
-                }
+            if (_.last(data).id > _.first(this.cache).id) {
+                this.topOfFirstLoad = _.first(this.cache).id;
             }
 
             // the post which is on top at present (before we add in the new dataset).
