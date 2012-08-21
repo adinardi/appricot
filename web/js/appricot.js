@@ -45,12 +45,14 @@ appricot.App = Class.$extend({
 
     renderUI: function() {
         var userStream = new appricot.UserStream();
+        var globalStream = new appricot.GlobalStream();
+        var mentionStream = new appricot.MentionStream();
 
         var pageContainer = document.createElement('div');
         bonzo(pageContainer).addClass('row');
 
         var toolbar = document.createElement('div');
-        bonzo(toolbar).addClass('span1');
+        bonzo(toolbar).addClass('span1 toolbar');
 
         var mainPage = document.createElement('div');
         bonzo(mainPage).addClass('span11');
@@ -65,9 +67,16 @@ appricot.App = Class.$extend({
             .addClass('btn')
             .html("<i class='icon-refresh'></i>");
         bean.add(refresh, 'click', _.bind(this.handleRefreshButton, this, userStream));
+        bean.add(refresh, 'click', _.bind(this.handleRefreshButton, this, globalStream));
+        bean.add(refresh, 'click', _.bind(this.handleRefreshButton, this, mentionStream));
         bonzo(toolbar).append(refresh);
 
         bonzo(streams).append(userStream.render());
+        bonzo(streams).append(mentionStream.render());
+        bonzo(streams).append(globalStream.render());
+        bonzo(userStream.render()).addClass('stream1');
+        bonzo(mentionStream.render()).addClass('stream2');
+        bonzo(globalStream.render()).addClass('stream3');
 
         bonzo(pageContainer)
             .append(toolbar)
@@ -75,6 +84,8 @@ appricot.App = Class.$extend({
 
         bonzo(this.rootNode).append(pageContainer);
         userStream.load();
+        mentionStream.load();
+        globalStream.load();
     },
 
     handleRefreshButton: function(stream) {
@@ -196,37 +207,6 @@ appricot.Stream = Class.$extend({
     },
 
     handleLoad: function(data) {
-        this.isFetching = false;
-    },
-
-    loadMorePrevious: function() {
-        if (this.isFetching) {
-            return;
-        }
-
-        this.loadData({before_id: _.last(this.cache).id});
-    },
-
-    loadMoreNewer: function(before_id) {
-        if (this.isFetching) {
-            return;
-        }
-
-        this.loadData({
-            since_id: parseInt(_.first(this.cache).id) - 1,
-            before_id: before_id || null
-        });
-    }
-});
-
-appricot.UserStream = appricot.Stream.$extend({
-    type: 'userstream',
-
-    __init__: function() {
-        this.$super('https://alpha-api.app.net/stream/0/posts/stream');
-    },
-
-    handleLoad: function(data) {
         var fetchMoreBefore = null;
         var oldTopPost = null;
         var topOfCache = null;
@@ -304,8 +284,58 @@ appricot.UserStream = appricot.Stream.$extend({
         if (fetchMoreBefore) {
             this.loadMoreNewer(fetchMoreBefore);
         }
+    },
+
+    loadMorePrevious: function() {
+        if (this.isFetching) {
+            return;
+        }
+
+        this.loadData({before_id: _.last(this.cache).id});
+    },
+
+    loadMoreNewer: function(before_id) {
+        if (this.isFetching) {
+            return;
+        }
+
+        this.loadData({
+            since_id: parseInt(_.first(this.cache).id) - 1,
+            before_id: before_id || null
+        });
     }
 });
+
+appricot.UserStream = appricot.Stream.$extend({
+    type: 'userstream',
+
+    __init__: function() {
+        this.$super('https://alpha-api.app.net/stream/0/posts/stream');
+    }
+});
+
+appricot.GlobalStream = appricot.Stream.$extend({
+    type: 'globalstream',
+
+    __init__: function() {
+        this.$super('https://alpha-api.app.net/stream/0/posts/stream/global');
+    },
+
+    load: function() {
+        this.cache = [];
+
+        this.loadData();
+    }
+});
+
+appricot.MentionStream = appricot.Stream.$extend({
+    type: 'mentionstream',
+
+    __init__: function() {
+        this.$super('https://alpha-api.app.net/stream/0/users/me/mentions');
+    }
+});
+
 
 appricot.Post = Class.$extend({
     post: null,
