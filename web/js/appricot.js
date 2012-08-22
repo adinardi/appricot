@@ -170,6 +170,11 @@ appricot.Stream = Class.$extend({
     }, 10000),
 
     handlePositionLoad: function(data) {
+        if (data["code"] == 401) {
+            appricot.login();
+            return;
+        }
+
         this.currentTopPostId = data['position'];
         if (this.currentTopPostId) {
             this.currentTopPostId = parseInt(this.currentTopPostId, 10);
