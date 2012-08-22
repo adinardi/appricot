@@ -2,9 +2,54 @@ from flask import Flask, session, redirect, url_for, request
 import urllib2
 import urllib
 import simplejson
+import redis
 app = Flask(__name__)
 app.debug = True
 app.config['APPLICATION_ROOT'] = '/go'
+
+@app.route('/set_position')
+def set_position():
+    user = check_auth(request.args.get('access_token'))
+    if not user:
+        return simplejson.dumps({"error": "access_token invalid", "code": 401})
+
+    stream_id = request.args.get('stream_id')
+    key = "".join([
+        "appricot_position_",
+        user["user"]["id"],
+        "_",
+        stream_id
+        ])
+    r = redis.StrictRedis()
+    r.set(key, request.args.get('position'))
+
+    return simplejson.dumps({'status': 'success'})
+
+@app.route('/get_position')
+def get_position():
+    user = check_auth(request.args.get('access_token'))
+    if not user:
+        return simplejson.dumps({"error": "access_token invalid", "code": 401})
+
+    stream_id = request.args.get('stream_id')
+    key = "".join([
+        "appricot_position_",
+        user["user"]["id"],
+        "_",
+        stream_id
+        ])
+    r = redis.StrictRedis()
+    pos = r.get(key)
+
+    return simplejson.dumps({'status': 'success', 'position': pos})
+
+def check_auth(token):
+    req = urllib2.urlopen("https://alpha-api.app.net/stream/0/token?access_token=" + token)
+    data = simplejson.loads(req.read())
+    if data.has_key('code') and data["code"] == 401:
+        return False
+
+    return data
 
 @app.route('/user/is_auth')
 def is_auth():

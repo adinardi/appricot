@@ -1,6 +1,10 @@
 appricot = {};
 
 appricot.run = function() {
+    if (window.location.protocol != 'https:') {
+        window.location.href = 'https://appricot.me';
+        return;
+    }
     var app = new appricot.App();
     app.render(document.getElementById('root'));
 };
@@ -10,7 +14,7 @@ appricot.login = function() {
         "https://alpha.app.net/oauth/authenticate?",
         "client_id=","PkMGurQpTzGLmcyzK65sj4JXpkzVwUtE",
         "&response_type=token",
-        "&redirect_uri=","http://appricot.me/",
+        "&redirect_uri=","https://appricot.me/",
         "&scope=stream write_post",
     ].join('');
 };
@@ -114,6 +118,8 @@ appricot.Stream = Class.$extend({
     isFetching: false,
     topOfFirstLoad: 0,
     postNode: null,
+    firstLoad: true,
+    currentTopPostId: 0,
 
     __init__: function(endpoint) {
         this.endpoint = endpoint;
@@ -122,16 +128,53 @@ appricot.Stream = Class.$extend({
 
     load: function() {
         this.cache = [];
-        var lastPos = window.localStorage['stream_pos_' + this.type];
-        this.currentTopPostId = lastPos;
-        if (lastPos) {
+        if (this.firstLoad) {
+            this.firstLoad = false;
+            this.loadPositionFromServer();
+            return;
+        }
+        // var lastPos = window.localStorage['stream_pos_' + this.type];
+        if (this.currentTopPostId) {
             this.loadTopStreamAfterNextFetch = true;
             this.loadData({
-                before_id: parseInt(lastPos, 10) + 1
+                before_id: parseInt(this.currentTopPostId, 10) + 1
             });
         } else {
             this.loadData();
         }
+    },
+
+    loadPositionFromServer: function() {
+        reqwest({
+            url: 'https://appricot.me/go/get_position',
+            type: 'json',
+            data: {
+                'access_token': appricot.ACCESS_TOKEN,
+                'stream_id': this.type
+            },
+            success: _.bind(this.handlePositionLoad, this)
+        });
+    },
+
+    savePositionToServer: _.debounce(function(pos) {
+        reqwest({
+            url: 'https://appricot.me/go/set_position',
+            type: 'json',
+            data: {
+                'access_token': appricot.ACCESS_TOKEN,
+                'stream_id': this.type,
+                'position': pos
+            }
+        });
+    }, 10000),
+
+    handlePositionLoad: function(data) {
+        this.currentTopPostId = data['position'];
+        if (this.currentTopPostId) {
+            this.currentTopPostId = parseInt(this.currentTopPostId, 10);
+        }
+
+        this.load();
     },
 
     loadData: function(params) {
@@ -143,7 +186,8 @@ appricot.Stream = Class.$extend({
             url: this.endpoint,
             type: 'json',
             data: _.extend({
-                'access_token': appricot.ACCESS_TOKEN
+                'access_token': appricot.ACCESS_TOKEN,
+                'count': 100
             }, params),
             success: _.bind(this.handleLoad, this),
             error: _.bind(function(err) {
@@ -194,8 +238,12 @@ appricot.Stream = Class.$extend({
                 }
                 count++;
             }, this);
-            window.localStorage['stream_pos_' + this.type] = topPost.id;
-            this.currentTopPostId = topPost.id;
+
+            if (this.currentTopPostId != topPost.id) {
+                // window.localStorage['stream_pos_' + this.type] = topPost.id;
+                this.savePositionToServer(topPost.id);
+                this.currentTopPostId = topPost.id;
+            }
             this.updateStatus(count);
         }
 
@@ -241,8 +289,28 @@ appricot.Stream = Class.$extend({
         }
 
         this.cache = _.union(this.cache, data);
+
+        var idMap = _.groupBy(this.cache, 'id');
+        this.cache = _.map(idMap, function(value, key, list) {
+            if (value.length == 1) {
+                return value[0];
+            } else {
+                var rendered = _.find(value, function(post) {
+                    if (bonzo(post.render()).parent().length > 0) {
+                        return true;
+                    }
+                }, this);
+
+                if (rendered) {
+                    return rendered;
+                } else {
+                    return value[0];
+                }
+            }
+        }, this);
+
         this.cache = _.sortBy(this.cache, function(item) { return item.id; }); // this will break for large numbers...
-        this.cache = _.uniq(this.cache, true, function(item) { return item.id; });
+        // this.cache = _.uniq(this.cache, true, function(item) { return item.id; });
         this.cache.reverse();
 
         var oldScrollHeight = this.postNode.scrollHeight;
@@ -350,10 +418,12 @@ appricot.Post = Class.$extend({
     render: function() {
         if (!this.node) {
             this.node = document.createElement('div');
+            var date = new Date(this.post.created_at);
             bonzo(this.node)
                 .addClass('post row-fluid')
-                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span5'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{post.created_at}}</a></div></div><div class='row-fluid post_content'>{{&post.html}}</div></div>", {
-                    post: this.post
+                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&post.html}}</div></div>", {
+                    post: this.post,
+                    date: date.toDateString() + " " + date.toLocaleTimeString()
                 }));
         }
 
