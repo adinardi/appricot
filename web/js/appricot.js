@@ -93,6 +93,7 @@ appricot.App = Class.$extend({
     },
 
     handleRefreshButton: function(stream) {
+        _gaq.push(['_trackEvent', 'Streams', 'Refresh Button Click', '']);
         stream.loadMoreNewer();
     }
 });
