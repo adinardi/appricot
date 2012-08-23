@@ -52,19 +52,11 @@ appricot.App = Class.$extend({
         var globalStream = new appricot.GlobalStream();
         var mentionStream = new appricot.MentionStream();
 
-        var pageContainer = document.createElement('div');
-        bonzo(pageContainer).addClass('row');
-
         var toolbar = document.createElement('div');
-        bonzo(toolbar).addClass('span1 toolbar');
+        bonzo(toolbar).addClass('toolbar');
 
-        var mainPage = document.createElement('div');
-        bonzo(mainPage).addClass('span11');
-
-        var streams = document.createElement('div');
-        bonzo(streams).addClass('row');
-
-        bonzo(mainPage).append(streams);
+        var allStreams = document.createElement('div');
+        bonzo(allStreams).addClass('all_streams');
 
         var refresh = document.createElement('button');
         bonzo(refresh)
@@ -75,18 +67,17 @@ appricot.App = Class.$extend({
         bean.add(refresh, 'click', _.bind(this.handleRefreshButton, this, mentionStream));
         bonzo(toolbar).append(refresh);
 
-        bonzo(streams).append(userStream.render());
-        bonzo(streams).append(mentionStream.render());
-        bonzo(streams).append(globalStream.render());
-        bonzo(userStream.render()).addClass('stream1');
-        bonzo(mentionStream.render()).addClass('stream2');
-        bonzo(globalStream.render()).addClass('stream3');
+        bonzo(allStreams).append(userStream.render());
+        bonzo(allStreams).append(mentionStream.render());
+        bonzo(allStreams).append(globalStream.render());
+        bonzo(userStream.render()).addClass('stream');
+        bonzo(mentionStream.render()).addClass('stream');
+        bonzo(globalStream.render()).addClass('stream');
 
-        bonzo(pageContainer)
+        bonzo(this.rootNode)
             .append(toolbar)
-            .append(mainPage);
+            .append(allStreams);
 
-        bonzo(this.rootNode).append(pageContainer);
         userStream.load();
         mentionStream.load();
         globalStream.load();
@@ -207,10 +198,10 @@ appricot.Stream = Class.$extend({
     render: function() {
         if (!this.node) {
             this.node = document.createElement('div');
-            bonzo(this.node).addClass('span6 stream_container');
+            bonzo(this.node).addClass('stream_container');
 
             this.statusBar = document.createElement('div');
-            bonzo(this.statusBar).addClass('row-fluid statusbar');
+            bonzo(this.statusBar).addClass('statusbar');
             bonzo(this.node).append(this.statusBar);
 
             this.postNode = document.createElement('div');
@@ -425,7 +416,7 @@ appricot.Post = Class.$extend({
         if (!this.node) {
             this.node = document.createElement('div');
 
-            var content = this.post.text;
+            var content = this.post.text || '';
             var mentions = this.post.entities.mentions;
             var hashtags = this.post.entities.hashtags;
             var links = this.post.entities.links;
@@ -475,7 +466,7 @@ appricot.Post = Class.$extend({
             var date = new Date(this.post.created_at);
             bonzo(this.node)
                 .addClass('post row-fluid')
-                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&content}}</div></div>", {
+                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span11'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&content}}</div></div>", {
                     post: this.post,
                     content: content.replace("\n", "<br>"),
                     date: date.toDateString() + " " + date.toLocaleTimeString()
