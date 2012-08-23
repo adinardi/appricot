@@ -424,11 +424,60 @@ appricot.Post = Class.$extend({
     render: function() {
         if (!this.node) {
             this.node = document.createElement('div');
+
+            var content = this.post.text;
+            var mentions = this.post.entities.mentions;
+            var hashtags = this.post.entities.hashtags;
+            var links = this.post.entities.links;
+
+            var entities = [];
+
+            _.each(mentions, function(elem, index, list) {
+                entities.push({
+                    pos: elem.pos,
+                    len: elem.len,
+                    html: Mustache.render("<a href='https://alpha.app.net/{{username}}'>@{{username}}</a>", {
+                        username: elem.name
+                    })
+                });
+            }, this);
+
+            _.each(hashtags, function(elem, index, list) {
+                entities.push({
+                    pos: elem.pos,
+                    len: elem.len,
+                    html: Mustache.render("<a href='https://alpha.app.net/hashtags/{{tag}}'>#{{tag}}</a>", {
+                        tag: elem.name
+                    })
+                });
+            }, this);
+
+            _.each(links, function(elem, index, list) {
+                entities.push({
+                    pos: elem.pos,
+                    len: elem.len,
+                    html: Mustache.render("<a href='{{url}}'>{{text}}</a>", {
+                        url: elem.url,
+                        text: elem.text
+                    })
+                });
+            }, this);
+
+            // Sort entities
+            entities = _.sortBy(entities, 'pos');
+            entities.reverse();
+
+            // Apply them.
+            _.each(entities, function(elem, index, list) {
+                content = content.substring(0, elem.pos) + elem.html + content.substring(elem.pos + elem.len);
+            }, this);
+
             var date = new Date(this.post.created_at);
             bonzo(this.node)
                 .addClass('post row-fluid')
-                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&post.html}}</div></div>", {
+                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span10'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&content}}</div></div>", {
                     post: this.post,
+                    content: content,
                     date: date.toDateString() + " " + date.toLocaleTimeString()
                 }));
         }
