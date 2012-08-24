@@ -67,6 +67,13 @@ appricot.App = Class.$extend({
         bean.add(refresh, 'click', _.bind(this.handleRefreshButton, this, mentionStream));
         bonzo(toolbar).append(refresh);
 
+        var postBtn = document.createElement('button');
+        bonzo(postBtn)
+            .addClass('btn')
+            .html("<i class='icon-pencil'></i>");
+        bean.add(postBtn, 'click', _.bind(this.handlePostButton, this));
+        bonzo(toolbar).append(postBtn);
+
         bonzo(allStreams).append(userStream.render());
         bonzo(allStreams).append(mentionStream.render());
         bonzo(allStreams).append(globalStream.render());
@@ -83,7 +90,12 @@ appricot.App = Class.$extend({
         globalStream.load();
     },
 
-    handleRefreshButton: function(stream) {
+    handlePostButton: function(e) {
+        var post = new appricot.PostBox();
+        bonzo(document.body).append(post.render());
+    },
+
+    handleRefreshButton: function(stream, e) {
         _gaq.push(['_trackEvent', 'Streams', 'Refresh Button Click', '']);
         stream.loadMoreNewer();
     }
@@ -99,9 +111,55 @@ appricot.PostBox = Class.$extend({
     render: function() {
         if (!this.node) {
             this.node = document.createElement('div');
+
+            this.textarea = document.createElement('textarea');
+
+            var post = document.createElement('button');
+            bonzo(post)
+                .addClass('btn btn-success')
+                .text('Post');
+            bean.add(post, 'click', _.bind(this.handlePostButton, this));
+
+            var cancel = document.createElement('button');
+            bonzo(cancel)
+                .addClass('btn')
+                .text('Cancel');
+            bean.add(cancel, 'click', _.bind(this.handleCancelButton, this));
+
+            bonzo(this.node)
+                .addClass('postbox')
+                .append(this.textarea)
+                .append(post)
+                .append(cancel);
         }
 
         return this.node;
+    },
+
+    handlePostButton: function(e) {
+        reqwest({
+            url: 'https://alpha-api.app.net/stream/0/posts',
+            type: 'json',
+            method: 'post',
+            data: {
+                'access_token': appricot.ACCESS_TOKEN,
+                'text': this.textarea.value
+            },
+            success: _.bind(this.handlePostSuccess, this),
+            error: _.bind(this.handlePostError, this)
+        });
+    },
+
+    handleCancelButton: function(e) {
+        bonzo(this.node).remove();
+    },
+
+    handlePostSuccess: function(data) {
+        bonzo(this.node).remove();
+    },
+
+    handlePostError: function() {
+
     }
 });
 

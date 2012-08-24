@@ -4,6 +4,28 @@
 @statusbar_height: 20px;
 @toolbar_width: 40px;
 
+.postbox {
+    position: absolute;
+    top: 20px;
+    height: 200px;
+    width: 500px;
+    margin-left: 40px;
+    background-color: white;
+    box-shadow: 0px 0px 15px black;
+
+    textarea {
+        width: 460px;
+        height: 140px;
+        margin-left: 20px;
+        margin-top: 5px;
+    }
+
+    button {
+        float: right;
+        margin-right: 10px;
+    }
+}
+
 .page_container {
     display: -webkit-flex;
     display: -moz-flex;
@@ -18,9 +40,13 @@
     display: -webkit-flex;
     display: -moz-flex;
     display: flex;
+    -webkit-flex-direction: column;
+    -moz-flex-direction: row;
 
     .btn {
-        height: 32px;
+        height: 25px;
+        margin-top: 5px;
+        margin-left: 5px;
     }
 }
 
