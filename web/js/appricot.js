@@ -33,6 +33,7 @@ appricot.App = Class.$extend({
             }
             window.location.href = '#';
             this.authenticated = true;
+            mixpanel.track('Authenticated User');
         } else {
             appricot.login();
         }
@@ -93,19 +94,24 @@ appricot.App = Class.$extend({
     handlePostButton: function(e) {
         var post = new appricot.PostBox();
         bonzo(document.body).append(post.render());
+
+        mixpanel.track('Click Post Button');
     },
 
     handleRefreshButton: function(stream, e) {
         _gaq.push(['_trackEvent', 'Streams', 'Refresh Button Click', '']);
         stream.loadMoreNewer();
+
+        mixpanel.track('Refresh Button');
     }
 });
 
 appricot.PostBox = Class.$extend({
     node: null,
+    reply_to: null,
 
-    __init__: function() {
-
+    __init__: function(reply_to) {
+        this.reply_to = reply_to;
     },
 
     render: function() {
@@ -113,6 +119,13 @@ appricot.PostBox = Class.$extend({
             this.node = document.createElement('div');
 
             this.textarea = document.createElement('textarea');
+            bean.add(this.textarea, 'keypress', _.bind(this.handleKeyPress, this));
+            bean.add(this.textarea, 'keyup', _.bind(this.handleKeyPress, this));
+
+            this.counter = document.createElement('div');
+            bonzo(this.counter)
+                .addClass('counter')
+                .text('256');
 
             var post = document.createElement('button');
             bonzo(post)
@@ -129,11 +142,16 @@ appricot.PostBox = Class.$extend({
             bonzo(this.node)
                 .addClass('postbox')
                 .append(this.textarea)
+                .append(this.counter)
                 .append(post)
                 .append(cancel);
         }
 
         return this.node;
+    },
+
+    handleKeyPress: function(e) {
+        bonzo(this.counter).text(256 - parseInt(this.textarea.value.length, 10));
     },
 
     handlePostButton: function(e) {
@@ -143,15 +161,19 @@ appricot.PostBox = Class.$extend({
             method: 'post',
             data: {
                 'access_token': appricot.ACCESS_TOKEN,
-                'text': this.textarea.value
+                'text': this.textarea.value,
+                'reply_to': this.reply_to
             },
             success: _.bind(this.handlePostSuccess, this),
             error: _.bind(this.handlePostError, this)
         });
+
+        mixpanel.track('Submit Post');
     },
 
     handleCancelButton: function(e) {
         bonzo(this.node).remove();
+        mixpanel.track('Post Cancelled');
     },
 
     handlePostSuccess: function(data) {
@@ -159,7 +181,7 @@ appricot.PostBox = Class.$extend({
     },
 
     handlePostError: function() {
-
+        mixpanel.track('Post Failed');
     }
 });
 
@@ -265,7 +287,7 @@ appricot.Stream = Class.$extend({
             this.postNode = document.createElement('div');
             bonzo(this.postNode).addClass('stream_post_container');
             bonzo(this.node).append(this.postNode);
-            bean.add(this.postNode, 'scroll', _.bind(this.handleScroll, this));
+            bean.add(this.postNode, 'scroll', _.bind(_.debounce(this.handleScroll, 100), this));
         }
 
         return this.node;
@@ -284,6 +306,15 @@ appricot.Stream = Class.$extend({
             return;
         }
 
+        this.updateNewerPostCount();
+
+        var wrappedNode = bonzo(this.postNode);
+        if (wrappedNode.scrollTop() >= this.postNode.scrollHeight - wrappedNode.offset().height - 10) {
+            this.loadMorePrevious();
+        }
+    },
+
+    updateNewerPostCount: function(force_render) {
         var count = 0;
         if (this.cache.length > 0) {
             var scrollTop = bonzo(this.postNode).scrollTop();
@@ -294,18 +325,18 @@ appricot.Stream = Class.$extend({
                 count++;
             }, this);
 
-            if (this.currentTopPostId != topPost.id) {
-                // window.localStorage['stream_pos_' + this.type] = topPost.id;
-                this.savePositionToServer(topPost.id);
-                this.currentTopPostId = topPost.id;
+            var wasChanged = this.currentTopPostId != topPost.id;
+
+            // Update if the top post changed OR we're forcing an update.
+            if (wasChanged || force_render) {
+                this.updateStatus(count);
+
+                // Only update the server IF we actually changed top post (might just be updating UI).
+                if (wasChanged) {
+                    this.savePositionToServer(topPost.id);
+                    this.currentTopPostId = topPost.id;
+                }
             }
-            this.updateStatus(count);
-        }
-
-
-        var wrappedNode = bonzo(this.postNode);
-        if (wrappedNode.scrollTop() >= this.postNode.scrollHeight - wrappedNode.offset().height - 10) {
-            this.loadMorePrevious();
         }
     },
 
@@ -396,6 +427,8 @@ appricot.Stream = Class.$extend({
 
         this.isFetching = false;
 
+        this.updateNewerPostCount(true);
+
         if (this.topOfFirstLoad) {
             this.loadData({
                 since_id: this.topOfFirstLoad - 1,
@@ -474,6 +507,8 @@ appricot.Post = Class.$extend({
         if (!this.node) {
             this.node = document.createElement('div');
 
+            bean.add(this.node, 'click', _.bind(this.handleRowClick, this));
+
             var content = this.post.text || '';
             var mentions = this.post.entities.mentions;
             var hashtags = this.post.entities.hashtags;
@@ -532,5 +567,19 @@ appricot.Post = Class.$extend({
         }
 
         return this.node;
+    },
+
+    handleRowClick: function(e) {
+        console.log('CLICKED ROW', e);
+        if (e.target.tagName.toLowerCase() == 'a') {
+            return;
+        }
+        var post = bonzo(qwery('.span11', this.node)[0]);
+        console.log('post', post);
+        if (post.hasClass('reveal')) {
+            post.removeClass('reveal');
+        } else {
+            post.addClass('reveal');
+        }
     }
 });
