@@ -1,8 +1,7 @@
 appricot = {};
 
 appricot.run = function() {
-    if (window.location.protocol != 'https:') {
-        window.location.href = 'https://appricot.me';
+    if (!Modernizr.flexbox) {
         return;
     }
     var app = new appricot.App();
@@ -94,6 +93,7 @@ appricot.App = Class.$extend({
     handlePostButton: function(e) {
         var post = new appricot.PostBox();
         bonzo(document.body).append(post.render());
+        post.focus();
 
         mixpanel.track('Click Post Button');
     },
@@ -110,8 +110,9 @@ appricot.PostBox = Class.$extend({
     node: null,
     reply_to: null,
 
-    __init__: function(reply_to) {
+    __init__: function(content, reply_to) {
         this.reply_to = reply_to;
+        this.content = content;
     },
 
     render: function() {
@@ -119,6 +120,9 @@ appricot.PostBox = Class.$extend({
             this.node = document.createElement('div');
 
             this.textarea = document.createElement('textarea');
+            if (this.content) {
+                bonzo(this.textarea).val(this.content);
+            }
             bean.add(this.textarea, 'keypress', _.bind(this.handleKeyPress, this));
             bean.add(this.textarea, 'keyup', _.bind(this.handleKeyPress, this));
 
@@ -182,6 +186,18 @@ appricot.PostBox = Class.$extend({
 
     handlePostError: function() {
         mixpanel.track('Post Failed');
+    },
+
+    focus: function() {
+        this.textarea.focus();
+        if (typeof this.textarea.selectionStart == "number") {
+            this.textarea.selectionStart = this.textarea.selectionEnd = this.textarea.value.length;
+        } else if (typeof this.textarea.createTextRange != "undefined") {
+            this.textarea.focus();
+            var range = this.textarea.createTextRange();
+            range.collapse(false);
+            range.select();
+        }
     }
 });
 
@@ -192,6 +208,7 @@ appricot.Stream = Class.$extend({
     postNode: null,
     firstLoad: true,
     currentTopPostId: 0,
+    rememberPosition: true,
 
     __init__: function(endpoint) {
         this.endpoint = endpoint;
@@ -202,11 +219,13 @@ appricot.Stream = Class.$extend({
         this.cache = [];
         if (this.firstLoad) {
             this.firstLoad = false;
-            this.loadPositionFromServer();
-            return;
+            if (this.rememberPosition) {
+                this.loadPositionFromServer();
+                return;
+            }
         }
         // var lastPos = window.localStorage['stream_pos_' + this.type];
-        if (this.currentTopPostId) {
+        if (this.rememberPosition && this.currentTopPostId) {
             this.loadTopStreamAfterNextFetch = true;
             this.loadData({
                 before_id: parseInt(this.currentTopPostId, 10) + 1
@@ -229,6 +248,10 @@ appricot.Stream = Class.$extend({
     },
 
     savePositionToServer: _.debounce(function(pos) {
+        if (!this.rememberPosition) {
+            return;
+        }
+
         reqwest({
             url: 'https://appricot.me/go/set_position',
             type: 'json',
@@ -238,7 +261,7 @@ appricot.Stream = Class.$extend({
                 'position': pos
             }
         });
-    }, 10000),
+    }, 5000),
 
     handlePositionLoad: function(data) {
         if (data["code"] == 401) {
@@ -351,6 +374,10 @@ appricot.Stream = Class.$extend({
             console.log("NO DATA!? OMG");
             return;
         }
+
+        data = _.filter(data, function(item) {
+            return (!item.is_deleted);
+        });
 
         // Create post wrapper objects for all the new items.
         data = _.map(data, function(item) {
@@ -472,15 +499,10 @@ appricot.UserStream = appricot.Stream.$extend({
 
 appricot.GlobalStream = appricot.Stream.$extend({
     type: 'globalstream',
+    rememberPosition: false,
 
     __init__: function() {
         this.$super('https://alpha-api.app.net/stream/0/posts/stream/global');
-    },
-
-    load: function() {
-        this.cache = [];
-
-        this.loadData();
     }
 });
 
@@ -564,18 +586,57 @@ appricot.Post = Class.$extend({
                     content: content.replace("\n", "<br>"),
                     date: date.toDateString() + " " + date.toLocaleTimeString()
                 }));
+
+            var actions = document.createElement('div');
+            var reply = document.createElement('img');
+
+            bonzo(reply)
+                .addClass('reply')
+                .attr('src', '/images/glyphicons/png/glyphicons_221_unshare.png');
+
+            bean.add(reply, 'click', _.bind(this.handleReplyClick, this));
+
+            var repost = document.createElement('img');
+
+            bonzo(repost)
+                .addClass('repost')
+                .attr('src', '/images/glyphicons/png/glyphicons_176_forward.png');
+
+            bean.add(repost, 'click', _.bind(this.handleRepostClick, this));
+
+            bonzo(actions)
+                .addClass('actions')
+                .append(reply)
+                .append(repost);
+
+            bonzo(this.node)
+                .append(actions);
         }
 
         return this.node;
     },
 
+    handleReplyClick: function(e) {
+        var post = new appricot.PostBox('@' + this.post.user.username + ' ', this.id);
+        bonzo(document.body).append(post.render());
+        post.focus();
+
+        mixpanel.track('Click Reply Button');
+    },
+
+    handleRepostClick: function(e) {
+        var post = new appricot.PostBox('\u00BB @' + this.post.user.username + ': ' + this.post.text, this.id);
+        bonzo(document.body).append(post.render());
+        post.focus();
+
+        mixpanel.track('Click Repost Button');
+    },
+
     handleRowClick: function(e) {
-        console.log('CLICKED ROW', e);
         if (e.target.tagName.toLowerCase() == 'a') {
             return;
         }
-        var post = bonzo(qwery('.span11', this.node)[0]);
-        console.log('post', post);
+        var post = bonzo(this.node);
         if (post.hasClass('reveal')) {
             post.removeClass('reveal');
         } else {
