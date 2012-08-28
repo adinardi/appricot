@@ -1,9 +1,13 @@
 appricot = {};
 
 appricot.run = function() {
-    if (!Modernizr.flexbox) {
+    if (!Modernizr.flexbox && !Modernizr.flexboxlegacy) {
         return;
     }
+    if (window.navigator.userAgent.match(/Firefox/)) {
+        bonzo(document.body.parentNode).addClass('moz');
+    }
+
     var app = new appricot.App();
     app.render(document.getElementById('root'));
 };
@@ -583,7 +587,7 @@ appricot.Post = Class.$extend({
                 .addClass('post row-fluid')
                 .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span11'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&content}}</div></div>", {
                     post: this.post,
-                    content: content.replace("\n", "<br>"),
+                    content: content.replace(/\n/g, "<br>"),
                     date: date.toDateString() + " " + date.toLocaleTimeString()
                 }));
 
