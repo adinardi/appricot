@@ -575,6 +575,37 @@ appricot.Post = Class.$extend({
 
             // Sort entities
             entities = _.sortBy(entities, 'pos');
+
+            // Clean up HTML first. Work through it and increment positions.
+            var addedCharCount = 0;
+            var cleanPos = 0;
+            _.each(entities, function(elem, index, list) {
+                // Push the pos up by how much we've already mucked in the string.
+                elem.pos += addedCharCount;
+
+                var originalContent = content.substring(cleanPos, elem.pos);
+                var cleanContent = _.escape(originalContent);
+
+                var elemContent = content.substring(elem.pos, elem.pos + elem.len);
+
+                var elemContentClean = _.escape(elemContent);
+
+                var contentSizeIncrease = elemContentClean.length - elemContent.length;
+
+                content = content.substring(0, cleanPos) + cleanContent + elemContentClean + content.substring(elem.pos + elem.len);
+
+                addedCharCount += cleanContent.length - originalContent.length;
+                elem.pos += cleanContent.length - originalContent.length;
+
+                addedCharCount += contentSizeIncrease;
+                elem.len += contentSizeIncrease;
+
+                cleanPos = elem.pos + elem.len;
+            }, this);
+
+            // Fallback for anything not preceeding an entity.
+            content = content.substring(0, cleanPos) + _.escape(content.substring(cleanPos));
+
             entities.reverse();
 
             // Apply them.
