@@ -7,13 +7,13 @@ app = Flask(__name__)
 app.debug = True
 app.config['APPLICATION_ROOT'] = '/go'
 
-@app.route('/set_position')
+@app.route('/set_position', methods=['GET', 'POST'])
 def set_position():
-    user = check_auth(request.args.get('access_token'))
+    user = check_auth(request.form.get('access_token', request.args.get('access_token')))
     if not user:
         return simplejson.dumps({"error": "access_token invalid", "code": 401})
 
-    stream_id = request.args.get('stream_id')
+    stream_id = request.form.get('stream_id', request.args.get('stream_id'))
     key = "".join([
         "appricot_position_",
         user["user"]["id"],
@@ -21,17 +21,17 @@ def set_position():
         stream_id
         ])
     r = redis.StrictRedis()
-    r.set(key, request.args.get('position'))
+    r.set(key, request.form.get('position', request.args.get('position')))
 
     return simplejson.dumps({'status': 'success'})
 
-@app.route('/get_position')
+@app.route('/get_position', methods=['GET', 'POST'])
 def get_position():
-    user = check_auth(request.args.get('access_token'))
+    user = check_auth(request.form.get('access_token', request.args.get('access_token')))
     if not user:
         return simplejson.dumps({"error": "access_token invalid", "code": 401})
 
-    stream_id = request.args.get('stream_id')
+    stream_id = request.form.get('stream_id', request.args.get('stream_id'))
     key = "".join([
         "appricot_position_",
         user["user"]["id"],

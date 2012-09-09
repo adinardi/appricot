@@ -243,6 +243,7 @@ appricot.Stream = Class.$extend({
         reqwest({
             url: 'https://appricot.me/go/get_position',
             type: 'json',
+            method: 'post',
             data: {
                 'access_token': appricot.ACCESS_TOKEN,
                 'stream_id': this.type
@@ -259,6 +260,7 @@ appricot.Stream = Class.$extend({
         reqwest({
             url: 'https://appricot.me/go/set_position',
             type: 'json',
+            method: 'post',
             data: {
                 'access_token': appricot.ACCESS_TOKEN,
                 'stream_id': this.type,
