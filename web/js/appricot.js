@@ -167,11 +167,14 @@ appricot.PostBox = Class.$extend({
             url: 'https://alpha-api.app.net/stream/0/posts',
             type: 'json',
             method: 'post',
-            data: {
-                'access_token': appricot.ACCESS_TOKEN,
+            contentType: 'application/json',
+            headers: {
+                'Authorization': 'Bearer ' + appricot.ACCESS_TOKEN
+            },
+            data: JSON.stringify({
                 'text': this.textarea.value,
                 'reply_to': this.reply_to
-            },
+            }),
             success: _.bind(this.handlePostSuccess, this),
             error: _.bind(this.handlePostError, this)
         });
