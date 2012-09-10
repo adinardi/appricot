@@ -153,6 +153,8 @@ appricot.PostBox = Class.$extend({
                 .append(this.counter)
                 .append(post)
                 .append(cancel);
+
+            this.handleKeyPress();
         }
 
         return this.node;
