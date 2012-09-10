@@ -17,7 +17,7 @@ appricot.login = function() {
         "https://alpha.app.net/oauth/authenticate?",
         "client_id=","PkMGurQpTzGLmcyzK65sj4JXpkzVwUtE",
         "&response_type=token",
-        "&redirect_uri=","https://appricot.me/",
+        "&redirect_uri=", window.location.origin,
         "&scope=stream write_post",
     ].join('');
 };
@@ -246,7 +246,7 @@ appricot.Stream = Class.$extend({
 
     loadPositionFromServer: function() {
         reqwest({
-            url: 'https://appricot.me/go/get_position',
+            url: '/go/get_position',
             type: 'json',
             method: 'post',
             data: {
@@ -263,7 +263,7 @@ appricot.Stream = Class.$extend({
         }
 
         reqwest({
-            url: 'https://appricot.me/go/set_position',
+            url: '/go/set_position',
             type: 'json',
             method: 'post',
             data: {
