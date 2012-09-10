@@ -122,6 +122,14 @@
     margin-top: 5px;
     margin-left: 7px;
     margin-bottom: 5px;
+    background: white;
+    -webkit-transition: left .5s;
+
+    &.minimized {
+        position: absolute;
+        left: -500px;
+        height: 500px;
+    }
 }
 
 .stream_container .statusbar {
@@ -179,6 +187,13 @@
         right: 10px;
         display: none;
     }
+}
+
+.minimizeButton {
+    position: absolute;
+    right: 2px;
+    top: 2px;
+    height: 15px;
 }
 
 .post_content {

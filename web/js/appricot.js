@@ -25,6 +25,11 @@ appricot.login = function() {
 appricot.App = Class.$extend({
     rootNode: null,
     authenticated: false,
+    /**
+     * The side toolbar with buttons.
+     */
+    toolbarElem: null,
+    allStreamsElem: null,
 
     __init__: function() {
         if (window.location.hash.match('#access_token') || window.localStorage['ACCESS_TOKEN']) {
@@ -53,14 +58,19 @@ appricot.App = Class.$extend({
 
     renderUI: function() {
         var userStream = new appricot.UserStream();
+        bean.on(userStream, 'minimize', _.bind(this.handleStreamMinimize, this), userStream);
         var globalStream = new appricot.GlobalStream();
+        bean.on(globalStream, 'minimize', _.bind(this.handleStreamMinimize, this), globalStream);
         var mentionStream = new appricot.MentionStream();
+        bean.on(mentionStream, 'minimize', _.bind(this.handleStreamMinimize, this), mentionStream);
 
         var toolbar = document.createElement('div');
         bonzo(toolbar).addClass('toolbar');
+        this.toolbarElem = toolbar;
 
         var allStreams = document.createElement('div');
         bonzo(allStreams).addClass('all_streams');
+        this.allStreamsElem = allStreams;
 
         var refresh = document.createElement('button');
         bonzo(refresh)
@@ -107,6 +117,19 @@ appricot.App = Class.$extend({
         stream.loadMoreNewer();
 
         mixpanel.track('Refresh Button');
+    },
+
+    handleStreamMinimize: function(e, stream) {
+        bonzo(stream.render()).addClass('minimized');
+        var button = stream.renderButton();
+        bonzo(this.toolbarElem).append(button);
+        bean.on(button, 'click.toolbar', _.bind(this.handleMinimizedStreamClick, this), button, stream);
+    },
+
+    handleMinimizedStreamClick: function(e, button, stream) {
+        bonzo(button).detach();
+        bean.off(button, 'click.toolbar');
+        bonzo(stream.render()).removeClass('minimized');
     }
 });
 
@@ -212,6 +235,7 @@ appricot.PostBox = Class.$extend({
 
 appricot.Stream = Class.$extend({
     cache: null,
+    title: "",
     isFetching: false,
     topOfFirstLoad: 0,
     postNode: null,
@@ -219,8 +243,9 @@ appricot.Stream = Class.$extend({
     currentTopPostId: 0,
     rememberPosition: true,
 
-    __init__: function(endpoint) {
+    __init__: function(endpoint, title) {
         this.endpoint = endpoint;
+        this.title = title;
         this.cache = [];
     },
 
@@ -315,8 +340,20 @@ appricot.Stream = Class.$extend({
             bonzo(this.node).addClass('stream_container');
 
             this.statusBar = document.createElement('div');
-            bonzo(this.statusBar).addClass('statusbar');
-            bonzo(this.node).append(this.statusBar);
+
+            this.minimizeButton = document.createElement('img');
+            bonzo(this.minimizeButton)
+                .addClass('minimizeButton')
+                .attr('src', '/images/glyphicons/png/glyphicons_214_resize_small.png')
+                .attr('title', 'Throw to sidebar');
+            bean.on(this.minimizeButton, 'click', _.bind(this.handleMinimizeButtonClick, this));
+
+            bonzo(this.statusBar)
+                .addClass('statusbar');
+            bonzo(this.node)
+                .append(this.statusBar)
+                .append(this.minimizeButton);
+            bean.on(this.statusBar, 'click', _.bind(this.handleStatusBarClick, this));
 
             this.postNode = document.createElement('div');
             bonzo(this.postNode).addClass('stream_post_container');
@@ -325,6 +362,25 @@ appricot.Stream = Class.$extend({
         }
 
         return this.node;
+    },
+
+    renderButton: function() {
+        if (!this.button) {
+            this.button = document.createElement('button');
+            bonzo(this.button)
+                .addClass('btn')
+                .attr('title', this.title)
+                .html("<i class='icon-list'></i>");
+        }
+
+        return this.button;
+    },
+
+    handleStatusBarClick: function(e) {
+    },
+
+    handleMinimizeButtonClick: function(e) {
+        bean.fire(this, 'minimize');
     },
 
     updateStatus: function(count) {
@@ -504,7 +560,7 @@ appricot.UserStream = appricot.Stream.$extend({
     type: 'userstream',
 
     __init__: function() {
-        this.$super('https://alpha-api.app.net/stream/0/posts/stream');
+        this.$super('https://alpha-api.app.net/stream/0/posts/stream', 'My Stream');
     }
 });
 
@@ -513,7 +569,7 @@ appricot.GlobalStream = appricot.Stream.$extend({
     rememberPosition: false,
 
     __init__: function() {
-        this.$super('https://alpha-api.app.net/stream/0/posts/stream/global');
+        this.$super('https://alpha-api.app.net/stream/0/posts/stream/global', 'Global');
     }
 });
 
@@ -521,7 +577,7 @@ appricot.MentionStream = appricot.Stream.$extend({
     type: 'mentionstream',
 
     __init__: function() {
-        this.$super('https://alpha-api.app.net/stream/0/users/me/mentions');
+        this.$super('https://alpha-api.app.net/stream/0/users/me/mentions', 'Mentions');
     }
 });
 
