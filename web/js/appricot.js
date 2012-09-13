@@ -323,7 +323,8 @@ appricot.Stream = Class.$extend({
             type: 'json',
             data: _.extend({
                 'access_token': appricot.ACCESS_TOKEN,
-                'count': 100
+                'count': 100,
+                'include_directed_posts': 1
             }, params),
             success: _.bind(this.handleLoad, this),
             error: _.bind(function(err) {
