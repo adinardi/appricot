@@ -585,11 +585,17 @@ appricot.MentionStream = appricot.Stream.$extend({
 
 appricot.Post = Class.$extend({
     post: null,
+    repostPost: null,
     node: null,
     id: 0,
 
     __init__: function(post) {
-        this.post = post;
+        if (post.repost_of) {
+            this.post = post['repost_of'];
+            this.repostPost = post;
+        } else {
+            this.post = post;
+        }
         this.id = parseInt(this.post.id, 10);
     },
 
@@ -680,33 +686,41 @@ appricot.Post = Class.$extend({
             var date = new Date(this.post.created_at);
             bonzo(this.node)
                 .addClass('post row-fluid')
-                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span11'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&content}}</div></div>", {
+                .html(Mustache.render("<div class='span1'><img class='avatar' src='{{post.user.avatar_image.url}}' /></div><div class='span11'><div class='row-fluid'><div class='span5'><b><a href='https://alpha.app.net/{{post.user.username}}' target='_blank'>{{post.user.username}}</a></b></div><div class='span6'><a href='https://alpha.app.net/{{post.user.username}}/post/{{post.id}}' target='_blank'>{{date}}</a></div></div><div class='row-fluid post_content'>{{&content}}</div><div class='row-fluid post_notes'>{{post_notes}}</div></div>", {
                     post: this.post,
                     content: content.replace(/\n/g, "<br>"),
-                    date: date.toDateString() + " " + date.toLocaleTimeString()
+                    date: date.toDateString() + " " + date.toLocaleTimeString(),
+                    post_notes: (this.repostPost ? 'reposted by ' + this.repostPost.user.name : '')
                 }));
 
             var actions = document.createElement('div');
-            var reply = document.createElement('img');
 
+            var reply = document.createElement('img');
             bonzo(reply)
                 .addClass('reply')
-                .attr('src', '/images/glyphicons/png/glyphicons_221_unshare.png');
-
+                .attr('src', '/images/glyphicons/png/glyphicons_221_unshare.png')
+                .attr('title', 'Reply');
             bean.add(reply, 'click', _.bind(this.handleReplyClick, this));
 
             var repost = document.createElement('img');
-
             bonzo(repost)
                 .addClass('repost')
-                .attr('src', '/images/glyphicons/png/glyphicons_176_forward.png');
-
+                .attr('src', '/images/glyphicons/png/glyphicons_176_forward.png')
+                .attr('title', 'Quoted Repost');
             bean.add(repost, 'click', _.bind(this.handleRepostClick, this));
+
+            var nativeRepost = document.createElement('img');
+            bonzo(nativeRepost)
+                .addClass('nativeRepost')
+                .attr('src', '/images/glyphicons/png/glyphicons_080_retweet.png')
+                .attr('title', 'Repost');
+            bean.add(nativeRepost, 'click', _.bind(this.handleNativeRepostClick, this));
 
             bonzo(actions)
                 .addClass('actions')
                 .append(reply)
-                .append(repost);
+                .append(repost)
+                .append(nativeRepost);
 
             bonzo(this.node)
                 .append(actions);
@@ -729,6 +743,20 @@ appricot.Post = Class.$extend({
         post.focus();
 
         mixpanel.track('Click Repost Button');
+    },
+
+    handleNativeRepostClick: function(e) {
+        reqwest({
+            url: 'https://alpha-api.app.net/stream/0/posts/' + this.post.id + '/repost',
+            type: 'json',
+            method: 'post',
+            headers: {
+                'Authorization': 'Bearer ' + appricot.ACCESS_TOKEN
+            },
+            data: {
+                'post_id': this.post.id
+            }
+        });
     },
 
     handleRowClick: function(e) {
