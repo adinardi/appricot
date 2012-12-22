@@ -242,6 +242,7 @@ appricot.Stream = Class.$extend({
     firstLoad: true,
     currentTopPostId: 0,
     rememberPosition: true,
+    streamMarkerName: "",
 
     __init__: function(endpoint, title) {
         this.endpoint = endpoint;
@@ -271,12 +272,11 @@ appricot.Stream = Class.$extend({
 
     loadPositionFromServer: function() {
         reqwest({
-            url: '/go/get_position',
+            url: this.endpoint,
             type: 'json',
-            method: 'post',
             data: {
                 'access_token': appricot.ACCESS_TOKEN,
-                'stream_id': this.type
+                'count': 0
             },
             success: _.bind(this.handlePositionLoad, this)
         });
@@ -288,24 +288,27 @@ appricot.Stream = Class.$extend({
         }
 
         reqwest({
-            url: '/go/set_position',
+            url: 'https://alpha-api.app.net/stream/0/posts/marker?access_token=' + encodeURIComponent(appricot.ACCESS_TOKEN),
             type: 'json',
             method: 'post',
-            data: {
-                'access_token': appricot.ACCESS_TOKEN,
-                'stream_id': this.type,
-                'position': pos
-            }
+            contentType: 'application/json',
+            data: JSON.stringify({
+                'name': this.streamMarkerName,
+                'id': pos
+            })//,
+            // success: _.bind(this.handlePositionLoad, this)
         });
     }, 5000),
 
-    handlePositionLoad: function(data) {
-        if (data["code"] == 401) {
+    handlePositionLoad: function(response) {
+        var meta = response.meta;
+        if (meta["code"] == 401) {
             appricot.login();
             return;
         }
 
-        this.currentTopPostId = data['position'];
+        this.streamMarkerName = meta['marker']['name'];
+        this.currentTopPostId = meta['marker']['id'];
         if (this.currentTopPostId) {
             this.currentTopPostId = parseInt(this.currentTopPostId, 10);
         }
@@ -431,7 +434,8 @@ appricot.Stream = Class.$extend({
         }
     },
 
-    handleLoad: function(data) {
+    handleLoad: function(response) {
+        var data = response.data;
         var fetchMoreBefore = null;
         var oldTopPost = null;
         var topOfCache = null;
