@@ -326,8 +326,8 @@ appricot.Stream = Class.$extend({
             type: 'json',
             data: _.extend({
                 'access_token': appricot.ACCESS_TOKEN,
-                'count': 100,
-                'include_directed_posts': 1
+                'count': 100//,
+                // 'include_directed_posts': 1
             }, params),
             success: _.bind(this.handleLoad, this),
             error: _.bind(function(err) {
@@ -565,7 +565,7 @@ appricot.UserStream = appricot.Stream.$extend({
     type: 'userstream',
 
     __init__: function() {
-        this.$super('https://alpha-api.app.net/stream/0/posts/stream', 'My Stream');
+        this.$super('https://alpha-api.app.net/stream/0/posts/stream/unified', 'My Stream');
     }
 });
 
